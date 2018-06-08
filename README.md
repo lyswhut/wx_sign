@@ -25,3 +25,6 @@ npm install
 - 服务器地址
 
 最后再运行`npm start`即可起飞！
+
+## LICENSE
+MIT

@@ -188,6 +188,7 @@ async function getabsence (json, openid) {
     time = sign.date.replace('-', '年').replace('-', '月') + '日'
     str += `${time}：http://${config.serverDomain}/wx/absence?time=${sign.date}\n`
   }
+  if (!str) return createJson(json, `暂无签到计划`)
   return createJson(json, `前十条签到计划为：\n${str}`)
 }
 
