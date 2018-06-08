@@ -72,7 +72,7 @@ async function sign (json, openid) {
   const todaySign = await signHelper.checkCreateSign()
   if (!todaySign) return createJson(json, `签到失败，今天没有创建签到计划！`)
   const userSignCode = parseInt(json.Content[0].trim().substring(2)).toString()
-  if (userSignCode !== todaySign.code) return createJson(json, `你的签到码（${userSignCode}）错误，`)
+  if (userSignCode !== todaySign.code) return createJson(json, `你的签到码（${userSignCode}）错误`)
   const isSignResult = checkSign(todaySign, userResult.number, openid)
   if (!isSignResult.signUser && isSignResult.openIdUser) return createJson(json, `你这是想帮别人签到吧？今天你已经在给${isSignResult.openIdUser.number}签过到了`)
   if (isSignResult.signUser) return createJson(json, `你（学号${userResult.number}）今天已经签到，无需再签到！`)
