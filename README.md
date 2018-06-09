@@ -13,6 +13,11 @@
 
 ## 安装(Installation)
 
+### 环境需求
+- `Node.js` (version：7+)
+- `MongoDB` (version：3.x)
+
+### 项目部署
 ```
 git clone https://github.com/lyswhut/wx_sign.git
 cd wx_sign
@@ -23,6 +28,7 @@ npm install
 - `MongoDB`的链接地址
 - 微信密钥
 - 服务器地址
+
 
 最后再运行`npm start`即可起飞！
 
