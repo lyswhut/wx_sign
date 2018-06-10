@@ -11,6 +11,7 @@ router.get('/', function (ctx, next) {
 router.get('/api/wx', wx.signature)
 router.post('/api/wx', wx.handleMsg)
 
+router.get('/attend', wx.get_attend)
 router.get('/absence', wx.get_absence)
 
 router.get('/api/test', async (ctx, next) => {

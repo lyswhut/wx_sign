@@ -41,7 +41,7 @@ exports.handleMsg = async (ctx, next) => {
   }
   if (ctx.is('text/xml')) {
     const result = await parseXml(ctx)
-    // console.log(result)
+    console.log(result)
     const json = await handleMsg(result.xml, ctx.query.openid)
     const sendXml = xmltool.jsonToXml(json)
     // console.log(sendXml)
@@ -50,11 +50,36 @@ exports.handleMsg = async (ctx, next) => {
   }
 }
 
+/**
+ * 出勤人员get方法
+ * @param {*} ctx
+ * @param {*} next
+ */
+exports.get_attend = async (ctx, next) => {
+  const timeStr = ctx.query.time
+  let time = new Date(timeStr)
+  if (!timeStr || time.toString() === 'Invalid Date') {
+    ctx.redirect(`${config.serverDomain}/`)
+  } else {
+    const queryTime = utils.formatTime(time)
+    const todaySign = await signHelper.getSign(queryTime)
+    await ctx.render('./wx/attend', {
+      title: `${queryTime} 出勤人员`,
+      todayUser: todaySign.users
+    })
+  }
+}
+
+/**
+ * 缺勤人员get方法
+ * @param {*} ctx
+ * @param {*} next
+ */
 exports.get_absence = async (ctx, next) => {
   const timeStr = ctx.query.time
   let time = new Date(timeStr)
   if (!timeStr || time.toString() === 'Invalid Date') {
-    ctx.redirect(`http://${config.serverDomain}/`)
+    ctx.redirect(`${config.serverDomain}/`)
   } else {
     const queryTime = utils.formatTime(time)
     const todaySign = await signHelper.getSign(queryTime)
@@ -76,7 +101,6 @@ exports.get_absence = async (ctx, next) => {
       todayUser: absenceUsers
     })
   }
-  // if (!todaySign) return createJson(json, `签到失败，今天没有创建签到计划！`)
 }
 
 /**
@@ -104,7 +128,7 @@ async function handleMsg (json, openid) {
         }
       }
   }
-  console.log(sendJson)
+  // console.log(sendJson)
   return sendJson
 }
 
