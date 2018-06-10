@@ -3,17 +3,27 @@ var Schema = mongoose.Schema
 
 var signSchema = new Schema({
   date: String,
-  code: String,
-  users: [{
-    name: String,
-    number: String,
-    wxOpenId: String,
-    date: { type: Date, default: Date.now }
+  signPlanInfo: [{
+    createTime: {
+      type: Date,
+      default: Date.now
+    },
+    TTL: Number,
+    overTime: Date,
+    code: String
   }],
-  hidden: {
-    type: Boolean,
-    default: false
-  },
+  signPlans: [{
+    users: [{
+      name: String,
+      number: String,
+      wxOpenId: String,
+      date: { type: Date, default: Date.now }
+    }],
+    hidden: {
+      type: Boolean,
+      default: false
+    }
+  }],
   meta: {
     createAt: {
       type: Date,

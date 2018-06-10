@@ -59,6 +59,11 @@ walk(models_path)
 
 // cache data
 // require('./handlers/cacheData')()
+global.data = {
+  wx: {
+    signOverTime: config.wx.signOverTime
+  }
+}
 
 // error handler
 onerror(app)

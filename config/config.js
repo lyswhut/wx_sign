@@ -22,6 +22,10 @@ module.exports = {
       appSecret: 'xxx'
     }
   },
+  wx: {
+    signOverTime: 2,
+    showLimit: 10
+  },
   serverName: '微信公众号签到系统',
   serverDomain: 'http://www.mynook.cn'
 }

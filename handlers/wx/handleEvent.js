@@ -1,4 +1,4 @@
-module.exports = (json, openid) => {
+module.exports = (ctx, json, openid) => {
   console.log('handle event')
   switch (json.Event[0]) {
     case 'subscribe':

@@ -20,7 +20,7 @@ exports.checkBind = async (wxOpenId) => {
  * @param {*} 学号
  */
 exports.checkUser = async (number) => {
-  const restlt = await UserSchema.findOne({ number: number }).limit(10).exec().then((result) => {
+  const restlt = await UserSchema.findOne({ number: number }).exec().then((result) => {
     return result
   }).catch((err) => {
     console.log('checkUser', err)

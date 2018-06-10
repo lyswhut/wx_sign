@@ -1,9 +1,9 @@
 const crypto = require('crypto')
-const log4js = require('log4js')
+// const log4js = require('log4js')
 
 const config = require('../../config/config')
 const xmltool = require('../../utils/xmltool')
-const log_wx = log4js.getLogger('wx')
+// const log_wx = log4js.getLogger('wx')
 
 const userHelper = require('../../dbHelper/userHelper')
 const signHelper = require('../../dbHelper/signHelper')
@@ -42,7 +42,7 @@ exports.handleMsg = async (ctx, next) => {
   if (ctx.is('text/xml')) {
     const result = await parseXml(ctx)
     console.log(result)
-    const json = await handleMsg(result.xml, ctx.query.openid)
+    const json = await handleMsg(ctx, result.xml, ctx.query.openid)
     const sendXml = xmltool.jsonToXml(json)
     // console.log(sendXml)
     ctx.body = sendXml
@@ -57,17 +57,17 @@ exports.handleMsg = async (ctx, next) => {
  */
 exports.get_attend = async (ctx, next) => {
   const timeStr = ctx.query.time
+  const gargetIndex = parseInt(ctx.query.index)
   let time = new Date(timeStr)
-  if (!timeStr || time.toString() === 'Invalid Date') {
-    ctx.redirect(`${config.serverDomain}/`)
-  } else {
-    const queryTime = utils.formatTime(time)
-    const todaySign = await signHelper.getSign(queryTime)
-    await ctx.render('./wx/attend', {
-      title: `${queryTime} 出勤人员`,
-      todayUser: todaySign.users
-    })
-  }
+  if (!timeStr || time.toString() === 'Invalid Date' || isNaN(gargetIndex)) return ctx.redirect(`${config.serverDomain}/`)
+
+  const queryTime = utils.formatTime(time)
+  const todaySign = await signHelper.getSign(queryTime)
+  if (!todaySign || todaySign.signPlans.length < gargetIndex) return ctx.redirect(`${config.serverDomain}/`)
+  await ctx.render('./wx/attend', {
+    title: `${utils.formatTime(todaySign.signPlanInfo[gargetIndex].createTime, true)} 出勤人员`,
+    todayUser: todaySign.signPlans[gargetIndex].users
+  })
 }
 
 /**
@@ -81,14 +81,23 @@ exports.get_absence = async (ctx, next) => {
   if (!timeStr || time.toString() === 'Invalid Date') {
     ctx.redirect(`${config.serverDomain}/`)
   } else {
+    const timeStr = ctx.query.time
+    const gargetIndex = parseInt(ctx.query.index)
+    let time = new Date(timeStr)
+    if (!timeStr || time.toString() === 'Invalid Date' || isNaN(gargetIndex)) return ctx.redirect(`${config.serverDomain}/`)
+
     const queryTime = utils.formatTime(time)
     const todaySign = await signHelper.getSign(queryTime)
+    if (!todaySign || todaySign.signPlans.length < gargetIndex) return ctx.redirect(`${config.serverDomain}/`)
+
     const allUser = await userHelper.getAllUser()
     const absenceUsers = []
+    // console.log(todaySign.signPlans)
+    const signUsers = todaySign.signPlans[gargetIndex].users
     let isFind
     for (const user of allUser) {
       isFind = false
-      for (const signUser of todaySign.users) {
+      for (const signUser of signUsers) {
         if (user.number === signUser.number) {
           isFind = true
           break
@@ -97,7 +106,7 @@ exports.get_absence = async (ctx, next) => {
       if (!isFind) absenceUsers.push(user)
     }
     await ctx.render('./wx/absence', {
-      title: `${queryTime} 缺勤人员`,
+      title: `${utils.formatTime(todaySign.signPlanInfo[gargetIndex].createTime, true)} 缺勤人员`,
       todayUser: absenceUsers
     })
   }
@@ -108,14 +117,14 @@ exports.get_absence = async (ctx, next) => {
  * @param {*} json 用户发过来的消息
  * @param {*} openid 用户的openid
  */
-async function handleMsg (json, openid) {
+async function handleMsg (ctx, json, openid) {
   let sendJson
   switch (json.MsgType[0]) {
     case 'event':
-      sendJson = await handleEvent(json, openid)
+      sendJson = await handleEvent(ctx, json, openid)
       break
     case 'text':
-      sendJson = await handleText(json, openid)
+      sendJson = await handleText(ctx, json, openid)
       break
     default:
       sendJson = {

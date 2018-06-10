@@ -1,7 +1,7 @@
 const userHelper = require('../../dbHelper/userHelper')
 const signHelper = require('../../dbHelper/signHelper')
 const config = require('../../config/config')
-// const utils = require('../../utils/utils')
+const utils = require('../../utils/utils')
 const CMD_TYPE = {
   MENU: 'CD',
   BIND: 'BD',
@@ -10,27 +10,30 @@ const CMD_TYPE = {
   CREATE_SIGN: 'CQD',
   RECREATE_SIGN: 'RECQD',
   ATTEND: 'CQ',
-  ABSENCE: 'QQ'
+  ABSENCE: 'QQ',
+  CHANGE_SIGN_OVER_TIME: 'XGSJ'
 }
 
-module.exports = async (json, openid) => {
+module.exports = async (ctx, json, openid) => {
   let sendJson
   if (json.Content[0].trim().substring(0, 2) === CMD_TYPE.MENU) {
-    sendJson = await showMenu(json, openid)
+    sendJson = await handleShowMenu(ctx, json, openid)
   } else if (json.Content[0].trim().substring(0, 2) === CMD_TYPE.BIND) {
-    sendJson = await bindNumber(json, openid)
+    sendJson = await handleBindNumber(json, openid)
   } else if (json.Content[0].trim().substring(0, 2) === CMD_TYPE.UNBIND) {
-    sendJson = await unbindNumber(json, openid)
+    sendJson = await handleUnbindNumber(json, openid)
   } else if (json.Content[0].trim().substring(0, 2) === CMD_TYPE.SIGN) {
-    sendJson = await sign(json, openid)
+    sendJson = await handleSign(json, openid)
   } else if (json.Content[0].trim().substring(0, 3) === CMD_TYPE.CREATE_SIGN) {
-    sendJson = await createSign(json, openid)
+    sendJson = await handleCreateSign(ctx, json, openid)
   } else if (json.Content[0].trim().substring(0, 5) === CMD_TYPE.RECREATE_SIGN) {
-    sendJson = await createSign(json, openid, true)
+    sendJson = await handleCreateSign(ctx, json, openid, true)
   } else if (json.Content[0].trim().substring(0, 2) === CMD_TYPE.ATTEND) {
-    sendJson = await getAttend(json, openid)
+    sendJson = await handleGetAttend(json, openid)
   } else if (json.Content[0].trim().substring(0, 2) === CMD_TYPE.ABSENCE) {
-    sendJson = await getabsence(json, openid)
+    sendJson = await handleGetabsence(json, openid)
+  } else if (json.Content[0].trim().substring(0, 4) === CMD_TYPE.CHANGE_SIGN_OVER_TIME) {
+    sendJson = await handleChangeSignOverTime(ctx, json, openid)
   } else {
     sendJson = {
       xml: {
@@ -50,26 +53,65 @@ module.exports = async (json, openid) => {
  * @param {*} json
  * @param {*} openid
  */
-async function createSign (json, openid, isReCreate) {
-  const checkBindUserResult = await checkBindUser(json, openid)
-  const userResult = checkBindUserResult.data
-  if (!checkBindUserResult.isBind) return userResult
+async function handleCreateSign (ctx, json, openid, isReCreate) {
+  // const checkBindUserResult = await checkBindUser(json, openid)
+  // const userResult = checkBindUserResult.data
+  // if (!checkBindUserResult.isBind) return userResult
   // if (openid !== 'x') return createJson(json, `没有权限创建签到计划！`)
 
   const code = isReCreate ? json.Content[0].trim().substring(5).trim() : json.Content[0].trim().substring(3).trim()
   // if (code === '') return createJson(json, `签到码为：${code}`)
-  const todaySign = await signHelper.checkCreateSign()
-  if (todaySign) {
+  const now = new Date()
+  let todaySign = await signHelper.getTodaySign()
+  if (!todaySign) {
+    todaySign = await signHelper.createTodaySign()
+    const result = await signHelper.createSign(todaySign, {
+      createTime: now,
+      TTL: global.data.wx.signOverTime,
+      overTime: new Date(now + TTLFormate(global.data.wx.signOverTime)),
+      code: code
+    })
+    if (result) return createJson(json, `签到计划创建成功！签到码为：${code}`)
+    return createJson(json, `签到计划创建失败！`)
+  }
+  const lastSign = getLastSign(todaySign)
+  if (now - lastSign.signInfo.overTime < TTLFormate(lastSign.signInfo.TTL)) {
     if (isReCreate) {
-      const result = await signHelper.reCreateSign(todaySign, code)
+      const result = await signHelper.reCreateSign(todaySign, lastSign.lastIndex, {
+        createTime: now,
+        TTL: global.data.wx.signOverTime,
+        overTime: new Date(now + TTLFormate(global.data.wx.signOverTime)),
+        code: code
+      })
       if (result) return createJson(json, `覆盖签到计划创建成功！签到码为：${code}`)
       return createJson(json, `签到计划创建失败！`)
-    } else return createJson(json, `今天的签到计划已经创建，签到码为${todaySign.code}，如需覆盖请用RECQD命令`)
-  } else {
-    const result = await signHelper.createSign(code)
-    if (result) return createJson(json, `签到计划创建成功！签到码为：${code}`)
+    } else return createJson(json, `当前有签到计划正在进行，签到码为${lastSign.signInfo.code}，如需覆盖请用RECQD命令`)
   }
+  const result = await signHelper.createSign(todaySign, {
+    createTime: now,
+    TTL: global.data.wx.signOverTime,
+    overTime: new Date(now + TTLFormate(global.data.wx.signOverTime)),
+    code: code
+  })
+  if (result) return createJson(json, `签到计划创建成功！签到码为：${code}`)
   return createJson(json, `签到计划创建失败！`)
+}
+
+/**
+ * 格式化TTL
+ * @param {*} TTL
+ */
+function TTLFormate (TTL) {
+  return TTL * 60000
+}
+
+/**
+ * 获取最后一次签到计划信息
+ * @param {*} todaySign
+ */
+function getLastSign (todaySign) {
+  const lastIndex = todaySign.signPlanInfo.length - 1
+  return {lastIndex, signInfo: todaySign.signPlanInfo[lastIndex], signUsers: todaySign.signPlans[lastIndex]}
 }
 
 /**
@@ -77,18 +119,22 @@ async function createSign (json, openid, isReCreate) {
  * @param {*} json
  * @param {*} openid
  */
-async function sign (json, openid) {
+async function handleSign (json, openid) {
   const checkBindUserResult = await checkBindUser(json, openid)
   const userResult = checkBindUserResult.data
   if (!checkBindUserResult.isBind) return userResult
-  const todaySign = await signHelper.checkCreateSign()
-  if (!todaySign) return createJson(json, `签到失败，今天没有创建签到计划！`)
+  const todaySign = await signHelper.getTodaySign()
+  if (!todaySign) return createJson(json, `签到失败，当前没有正在进行的签到计划！`)
+  const lastSign = getLastSign(todaySign)
+  const now = new Date()
+  if (now - lastSign.signInfo.overTime > TTLFormate(lastSign.signInfo.TTL)) return createJson(json, `签到失败，当前没有正在进行的签到计划！`)
+
   const userSignCode = json.Content[0].trim().substring(2).trim()
-  if (userSignCode !== todaySign.code) return createJson(json, `你的签到码（${userSignCode}）错误`)
-  const isSignResult = checkSign(todaySign, userResult.number, openid)
+  if (userSignCode !== lastSign.signInfo.code) return createJson(json, `你的签到码（${userSignCode}）错误`)
+  const isSignResult = checkSign(lastSign.signUsers, userResult.number, openid)
   if (!isSignResult.signUser && isSignResult.openIdUser) return createJson(json, `你这是想帮别人签到吧？今天你已经给${isSignResult.openIdUser.number}签过到了`)
   if (isSignResult.signUser) return createJson(json, `你（学号${userResult.number}）今天已经签到，无需再签到！`)
-  const signResult = await signHelper.sign(todaySign, userResult)
+  const signResult = await signHelper.sign(todaySign, lastSign.lastIndex, userResult)
   // console.log(signResult)
   if (signResult) return createJson(json, `学号${userResult.number}签到成功！`)
   return createJson(json, `签到失败！`)
@@ -132,7 +178,7 @@ async function checkBindUser (json, openid) {
  * @param {*} json 用户发送过来的json格式消息
  * @param {*} openid 用户的openid
  */
-async function bindNumber (json, openid) {
+async function handleBindNumber (json, openid) {
   const result = await userHelper.checkBind(openid)
   // console.log('checkUser', result)
   if (result) {
@@ -157,7 +203,7 @@ async function bindNumber (json, openid) {
  * @param {*} json
  * @param {*} openid
  */
-async function unbindNumber (json, openid) {
+async function handleUnbindNumber (json, openid) {
   const targetUser = await userHelper.checkBind(openid)
   if (!targetUser) return createJson(json, `无需解绑，您的微信号还没有与班级的任何同学绑定哦`)
   const result = await userHelper.unbindUser(targetUser, openid)
@@ -170,7 +216,7 @@ async function unbindNumber (json, openid) {
  * @param {*} json
  * @param {*} openid
  */
-function showMenu (json, openid) {
+function handleShowMenu (ctx, json, openid) {
   return createJson(json,
     `在输入有+号的命令时+号不需要输。
 --------------------
@@ -198,7 +244,13 @@ ${CMD_TYPE.ABSENCE}
 ${CMD_TYPE.CREATE_SIGN}+签到码
 
 ->覆盖签到计划（注：该操作会清除今天已签到的用户）：
-${CMD_TYPE.RECREATE_SIGN}+签到码`)
+${CMD_TYPE.RECREATE_SIGN}+签到码
+
+->修改签到超时时间（单位为分钟）：
+${CMD_TYPE.CHANGE_SIGN_OVER_TIME}+超时时间
+
+--------------------
+当前超时时间为${fromateSignOverTimeStr(global.data.wx.signOverTime)}`)
 }
 
 /**
@@ -206,16 +258,20 @@ ${CMD_TYPE.RECREATE_SIGN}+签到码`)
  * @param {*} json
  * @param {*} openid
  */
-async function getAttend (json, openid) {
-  const allSign = await signHelper.getAllSign()
+async function handleGetAttend (json, openid) {
+  const limitSign = await signHelper.getLimitSign(config.wx.showLimit)
   let str = ''
   let time
-  for (const sign of allSign) {
-    time = sign.date.replace('-', '年').replace('-', '月') + '日'
-    str += `${time}：${config.serverDomain}/wx/attend?time=${sign.date}\n`
+  for (const daySign of limitSign) {
+    time = daySign.date.replace('-', '年').replace('-', '月') + '日：'
+    str += `->${time}\n`
+    for (const [index, sign] of daySign.signPlanInfo.entries()) {
+      str += `--------------------\n${utils.formatTime(sign.createTime, true)}：${config.serverDomain}/wx/attend?time=${daySign.date}&index=${index}\n`
+    }
+    str += '\n'
   }
   if (!str) return createJson(json, `暂无签到计划`)
-  return createJson(json, `前十条出勤人员签到计划为：\n${str}`)
+  return createJson(json, `前${config.wx.showLimit}天出勤人员签到计划为：\n${str}`)
 }
 
 /**
@@ -223,16 +279,46 @@ async function getAttend (json, openid) {
  * @param {*} json
  * @param {*} openid
  */
-async function getabsence (json, openid) {
-  const allSign = await signHelper.getAllSign()
+async function handleGetabsence (json, openid) {
+  const limitSign = await signHelper.getLimitSign(config.wx.showLimit)
   let str = ''
   let time
-  for (const sign of allSign) {
-    time = sign.date.replace('-', '年').replace('-', '月') + '日'
-    str += `${time}：${config.serverDomain}/wx/absence?time=${sign.date}\n`
+  for (const daySign of limitSign) {
+    time = daySign.date.replace('-', '年').replace('-', '月') + '日'
+    str += `->${time}\n`
+    for (const [index, sign] of daySign.signPlanInfo.entries()) {
+      // console.log(sign.createTime)
+      str += `--------------------\n${utils.formatTime(sign.createTime, true)}：${config.serverDomain}/wx/absence?time=${daySign.date}&index=${index}\n`
+    }
+    str += '\n'
   }
   if (!str) return createJson(json, `暂无签到计划`)
-  return createJson(json, `前十条缺勤人员签到计划为：\n${str}`)
+  return createJson(json, `前${config.wx.showLimit}天缺勤人员签到计划为：\n${str}`)
+}
+
+/**
+ * 修改签到超时时间
+ * @param {*} ctx
+ * @param {*} json
+ * @param {*} openid
+ */
+function handleChangeSignOverTime (ctx, json, openid) {
+  // if (openid !== 'x') return createJson(json, `没有权限修改签到超时时间！`)
+  let time = parseFloat(json.Content[0].trim().substring(4).trim())
+  if (isNaN(time)) return createJson(json, `修改签到超时时间失败，我拿到的签到超时时间为：${json.Content[0].trim().substring(4).trim()}`)
+  global.data.wx.signOverTime = time
+  return createJson(json, `签到超时时间修改成功，当前签到超时时间为${fromateSignOverTimeStr(global.data.wx.signOverTime)}`)
+}
+
+/**
+ * 格式化签到超时时间
+ * @param {*} time
+ */
+function fromateSignOverTimeStr (time) {
+  if (time < 1) return `${parseInt(time * 60)}秒`
+  const seconds = time % 1
+  if (seconds === 0) return `${parseInt(time)}分钟`
+  return `${parseInt(time)}分钟${parseInt(time % 1 * 60)}秒`
 }
 
 /**
