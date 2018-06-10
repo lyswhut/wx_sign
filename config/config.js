@@ -22,6 +22,6 @@ module.exports = {
       appSecret: 'xxx'
     }
   },
-  blogName: '微信公众号签到系统',
-  serverDomain: 'www.mynook.cn'
+  serverName: '微信公众号签到系统',
+  serverDomain: 'http://www.mynook.cn'
 }
