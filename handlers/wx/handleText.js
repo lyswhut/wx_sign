@@ -132,8 +132,8 @@ async function handleSign (json, openid) {
   const userSignCode = json.Content[0].trim().substring(2).trim()
   if (userSignCode !== lastSign.signInfo.code) return createJson(json, `你的签到码（${userSignCode}）错误`)
   const isSignResult = checkSign(lastSign.signUsers, userResult.number, openid)
-  if (!isSignResult.signUser && isSignResult.openIdUser) return createJson(json, `你这是想帮别人签到吧？今天你已经给${isSignResult.openIdUser.number}签过到了`)
-  if (isSignResult.signUser) return createJson(json, `你（学号${userResult.number}）今天已经签到，无需再签到！`)
+  if (!isSignResult.signUser && isSignResult.openIdUser) return createJson(json, `你这是想帮别人签到吧？本次你已经给${isSignResult.openIdUser.number}签过到了`)
+  if (isSignResult.signUser) return createJson(json, `你（学号${userResult.number}）本次已经签到，无需再签到！`)
   const signResult = await signHelper.sign(todaySign, lastSign.lastIndex, userResult)
   // console.log(signResult)
   if (signResult) return createJson(json, `学号${userResult.number}签到成功！`)
@@ -243,7 +243,7 @@ ${CMD_TYPE.ABSENCE}
 ->创建签到计划：
 ${CMD_TYPE.CREATE_SIGN}+签到码
 
-->覆盖签到计划（注：该操作会清除今天已签到的用户）：
+->覆盖签到计划（注：该操作会清除本次已签到的用户）：
 ${CMD_TYPE.RECREATE_SIGN}+签到码
 
 ->修改签到超时时间（单位为分钟）：
