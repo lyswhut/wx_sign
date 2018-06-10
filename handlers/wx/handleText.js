@@ -127,7 +127,7 @@ async function handleSign (json, openid) {
   if (!todaySign) return createJson(json, `签到失败，当前没有正在进行的签到计划！`)
   const lastSign = getLastSign(todaySign)
   const now = new Date()
-  if (now - lastSign.signInfo.overTime > TTLFormate(lastSign.signInfo.TTL)) return createJson(json, `签到失败，当前没有正在进行的签到计划！`)
+  if (now - lastSign.signInfo.overTime > TTLFormate(lastSign.signInfo.TTL)) return createJson(json, `签到失败，签到时间已过，当前没有正在进行的签到计划！`)
 
   const userSignCode = json.Content[0].trim().substring(2).trim()
   if (userSignCode !== lastSign.signInfo.code) return createJson(json, `你的签到码（${userSignCode}）错误`)
