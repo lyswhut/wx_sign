@@ -30,7 +30,7 @@ npm install
 - 服务器地址
 
 
-最后再运行`npm start`即可起飞！
+最后再执行 `npm start` or `pm2 start pm2.config.json --env production` 即可起飞！
 
 ## LICENSE
 MIT
