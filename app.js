@@ -26,7 +26,7 @@ switch (app.env) {
     connectionString = config.production.credentials.mongo.connectionString
     break
   default:
-    throw new Error('Unknown execution environment:' + app.get('env'))
+    throw new Error('Unknown execution environment:' + app.env)
 }
 mongoose.connect(connectionString).then(() => {
   log_database.info('db is success connected.')
