@@ -30,7 +30,16 @@ npm install
 - 服务器地址
 
 
-最后再执行 `npm start` or `pm2 start pm2.config.json --env production` 即可起飞！
+最后再执行\
+`npm start` 
+or\
+`pm2 start pm2.config.json --env production`\
+即可起飞！
+
+注：`npm start`是以开发模式运行，\
+`pm2 start pm2.config.json --env production`需要安装`pm2`才能用该命令，该命令是以生产模式运行。\
+关于`pm2`的使用方法请自行百度 or Google\
+有问题请到 issues 提问，cheers :beers: !
 
 ## LICENSE
 MIT
